@@ -238,6 +238,7 @@ body{min-height:100vh}
 .card{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;transition:box-shadow .18s,border-color .18s,transform .18s;
+  cursor:pointer;
 }
 .card:hover{box-shadow:var(--shadow);border-color:var(--border2);transform:translateY(-2px)}
 .card.watched{border-color:var(--green-bd)}
@@ -353,6 +354,121 @@ body{min-height:100vh}
 .vm-wrap{display:none;text-align:center;margin-top:28px}
 .vm-wrap.on{display:block}
 
+/* ── WATCH MODAL ── */
+.mdl-wrap{
+  position:fixed;inset:0;z-index:1000;
+  display:none;align-items:center;justify-content:center;
+  padding:20px;overflow-y:auto;
+}
+.mdl-wrap.on{display:flex}
+.mdl-bd{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+  animation:fadeIn .2s ease;cursor:pointer;
+}
+[data-theme="dark"] .mdl-bd{background:rgba(0,0,0,.72)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.mdl{
+  position:relative;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;box-shadow:var(--shadow);
+  width:100%;max-width:860px;max-height:calc(100vh - 40px);
+  display:flex;flex-direction:column;overflow:hidden;
+  animation:slideUp .25s cubic-bezier(.34,1.56,.64,1);
+}
+
+.mdl-x{
+  position:absolute;top:12px;right:12px;z-index:3;
+  width:30px;height:30px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--fg2);cursor:pointer;transition:all .15s;
+}
+.mdl-x:hover{background:var(--surface3);color:var(--fg)}
+.mdl-x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round}
+
+.mdl-hero{
+  display:flex;gap:20px;padding:22px 22px 18px;
+  background:var(--surface2);border-bottom:1px solid var(--border);
+}
+.mdl-poster{
+  width:132px;flex-shrink:0;aspect-ratio:2/3;
+  border-radius:10px;overflow:hidden;
+  background:var(--surface3);border:1px solid var(--border);
+}
+.mdl-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.mdl-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;padding-right:30px}
+.mdl-chips{display:flex;flex-wrap:wrap;gap:5px}
+.mdl-chip{
+  font-size:10.5px;color:var(--fg2);font-weight:400;
+  background:var(--surface);border:1px solid var(--border);
+  padding:3px 9px;border-radius:20px;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.mdl-chip.wd{background:var(--green-bg);border-color:var(--green-bd);color:var(--green-fg);font-weight:500}
+.mdl-chip.wd svg{width:10px;height:10px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.mdl-title{font-size:18px;font-weight:600;line-height:1.3;color:var(--fg);margin-top:2px}
+.mdl-sub{font-size:12px;color:var(--fg3);line-height:1.5}
+
+.mdl-body{padding:18px 22px 22px;overflow-y:auto;flex:1}
+
+.mdl-synopsis{font-size:12.5px;color:var(--fg2);line-height:1.6}
+.mdl-synopsis.clamp{
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+}
+.mdl-more{
+  font-size:11px;color:var(--fg3);cursor:pointer;
+  background:none;border:none;padding:4px 0 0;
+  font-family:var(--font);font-weight:500;
+}
+.mdl-more:hover{color:var(--fg)}
+
+.mdl-section{margin-bottom:18px}
+.mdl-section:last-child{margin-bottom:0}
+.mdl-lbl{
+  font-size:10.5px;font-weight:600;color:var(--fg3);
+  text-transform:uppercase;letter-spacing:0.06em;margin-bottom:9px;
+}
+
+.src-pick{display:flex;gap:6px;flex-wrap:wrap}
+.src-btn{
+  height:30px;padding:0 13px;
+  font-family:var(--font);font-size:11.5px;font-weight:500;
+  border:1px solid var(--border);border-radius:20px;
+  background:var(--surface);color:var(--fg3);
+  cursor:pointer;transition:all .15s;
+}
+.src-btn:hover{color:var(--fg);border-color:var(--border2)}
+.src-btn.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+.ep-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;
+}
+.ep-btn{
+  aspect-ratio:1;font-family:var(--font);font-size:12px;font-weight:500;
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--surface);color:var(--fg);
+  cursor:pointer;transition:all .12s;
+  display:flex;align-items:center;justify-content:center;
+}
+.ep-btn:hover{background:var(--fg);color:var(--bg);border-color:var(--fg);transform:translateY(-1px)}
+.ep-btn:active{transform:translateY(0)}
+
+.ep-custom{display:flex;gap:8px;align-items:center;margin-top:8px}
+.ep-in{
+  flex:1;max-width:120px;height:32px;padding:0 11px;
+  font-family:var(--font);font-size:12px;
+  border:1px solid var(--border);border-radius:20px;
+  background:var(--surface2);color:var(--fg);outline:none;
+  transition:border-color .15s,background .2s;
+}
+.ep-in:focus{border-color:var(--border2);background:var(--surface)}
+
+.mdl-empty{font-size:12px;color:var(--fg3);margin-bottom:4px}
+.mdl-note{font-size:10.5px;color:var(--fg3);margin-top:10px;line-height:1.5}
+
 /* ── TOAST ── */
 #toast{
   position:fixed;bottom:24px;left:50%;
@@ -375,6 +491,13 @@ body{min-height:100vh}
   .grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
   .fbar-inner{padding:0 14px;gap:2px}
   .tab{padding:0 10px;font-size:11.5px}
+  .mdl-wrap{padding:12px}
+  .mdl-hero{padding:16px;gap:14px}
+  .mdl-poster{width:96px}
+  .mdl-info{padding-right:28px}
+  .mdl-title{font-size:16px}
+  .mdl-body{padding:14px 16px 18px}
+  .ep-grid{grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px}
 }
 @media(max-width:480px){
   .srch{max-width:160px}
@@ -460,6 +583,24 @@ body{min-height:100vh}
     <button class="btn solid" id="vm-btn">View More</button>
   </div>
 </main>
+
+<div class="mdl-wrap" id="mdl" role="dialog" aria-modal="true" aria-labelledby="mdl-title">
+  <div class="mdl-bd" id="mdl-bd"></div>
+  <div class="mdl">
+    <button class="mdl-x" id="mdl-x" aria-label="Close">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="mdl-hero">
+      <div class="mdl-poster" id="mdl-poster"></div>
+      <div class="mdl-info">
+        <div class="mdl-chips" id="mdl-chips"></div>
+        <div class="mdl-title" id="mdl-title"></div>
+        <div class="mdl-sub" id="mdl-sub"></div>
+      </div>
+    </div>
+    <div class="mdl-body" id="mdl-body"></div>
+  </div>
+</div>
 
 <div id="toast">
   <svg id="t-ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -575,6 +716,14 @@ const dmBtn   = $('dm-btn');
 const dmIco   = $('dm-ico');
 const vmWrap  = $('vm-wrap');
 const vmBtn   = $('vm-btn');
+const mdl       = $('mdl');
+const mdlBd     = $('mdl-bd');
+const mdlX      = $('mdl-x');
+const mdlPoster = $('mdl-poster');
+const mdlTitle  = $('mdl-title');
+const mdlSub    = $('mdl-sub');
+const mdlChips  = $('mdl-chips');
+const mdlBody   = $('mdl-body');
 
 // ─── DARK MODE ───────────────────────────────────────────────────────────────
 let dark = document.documentElement.hasAttribute('data-theme');
@@ -745,6 +894,12 @@ function makeCard(anime) {
     onToggle(anime, el, e.target.checked);
   });
 
+  // Click anywhere on the card except the watched toggle opens the watch modal.
+  el.addEventListener('click', e => {
+    if (e.target.closest('.sw')) return;
+    openWatch(anime);
+  });
+
   return el;
 }
 
@@ -900,6 +1055,172 @@ function onFetchApplied() {
     }
   }
 }
+
+// ─── WATCH MODAL ─────────────────────────────────────────────────────────────
+// Streaming sources. Each builder returns the URL to open for a given
+// anime + episode. Streaming sites rename/move often; if one breaks, swap the
+// builder here. Miruro supports direct MAL deep-linking with episode; the
+// others fall back to a title search since they don't expose MAL routing.
+const SOURCES = [
+  { id: 'miruro',   label: 'Miruro',   build: (a, ep) => `https://www.miruro.to/watch?id=${a.mal_id}&ep=${ep}` },
+  { id: 'hianime',  label: 'HiAnime',  build: (a)     => `https://hianime.to/search?keyword=${encodeURIComponent(a.title)}` },
+  { id: 'allanime', label: 'AllAnime', build: (a)     => `https://allanime.to/search?q=${encodeURIComponent(a.title)}` }
+];
+let currentSource = (lsOk && localStorage.getItem('hiw:source')) || 'miruro';
+if (!SOURCES.find(s => s.id === currentSource)) currentSource = 'miruro';
+
+let activeAnime = null;
+
+const CHECK_SVG = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+function escHTML(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openWatch(anime) {
+  activeAnime = anime;
+
+  // Poster
+  const img = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '';
+  mdlPoster.innerHTML = img ? `<img src="${escHTML(img)}" alt="">` : '';
+
+  // Title (respects language preference)
+  mdlTitle.textContent = getTitle(anime);
+
+  // Subtitle: type · year · episodes · score
+  const bits = [];
+  if (anime.type) bits.push(anime.type);
+  const yr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
+  if (yr) bits.push(yr);
+  if (anime.episodes) bits.push(`${anime.episodes} episodes`);
+  else if (anime.status === 'Currently Airing') bits.push('Airing');
+  if (typeof anime.score === 'number') bits.push(`★ ${anime.score.toFixed(2)}`);
+  mdlSub.textContent = bits.join(' · ');
+
+  // Chips: watched state + first few genres
+  const chips = [];
+  if (watched[anime.mal_id]) {
+    chips.push(`<span class="mdl-chip wd">${CHECK_SVG} Watched</span>`);
+  }
+  (anime.genres || []).slice(0, 4).forEach(g => {
+    chips.push(`<span class="mdl-chip">${escHTML(g.name)}</span>`);
+  });
+  mdlChips.innerHTML = chips.join('');
+
+  // Body: synopsis + source picker + episodes
+  const syn = (anime.synopsis || '').trim();
+  const synHTML = syn
+    ? `<div class="mdl-section">
+         <div class="mdl-lbl">Synopsis</div>
+         <p class="mdl-synopsis${syn.length > 280 ? ' clamp' : ''}" id="mdl-syn">${escHTML(syn)}</p>
+         ${syn.length > 280 ? `<button class="mdl-more" id="mdl-more-btn">Read more</button>` : ''}
+       </div>`
+    : '';
+
+  const srcHTML = `
+    <div class="mdl-section">
+      <div class="mdl-lbl">Streaming source</div>
+      <div class="src-pick" id="src-pick">
+        ${SOURCES.map(s =>
+          `<button class="src-btn${s.id === currentSource ? ' on' : ''}" data-s="${s.id}">${s.label}</button>`
+        ).join('')}
+      </div>
+    </div>`;
+
+  // Episodes: explicit grid if known, otherwise a free-form input
+  let epsHTML;
+  const n = anime.episodes;
+  if (n && n > 0) {
+    let grid = '';
+    for (let i = 1; i <= n; i++) grid += `<button class="ep-btn" data-ep="${i}">${i}</button>`;
+    epsHTML = `
+      <div class="mdl-section">
+        <div class="mdl-lbl">Episodes (${n})</div>
+        <div class="ep-grid" id="ep-grid">${grid}</div>
+        <div class="mdl-note">Clicking an episode opens it in a new tab on the selected source.</div>
+      </div>`;
+  } else {
+    const airing = anime.status === 'Currently Airing';
+    epsHTML = `
+      <div class="mdl-section">
+        <div class="mdl-lbl">Episode</div>
+        <div class="mdl-empty">Episode count unknown${airing ? ' — series is currently airing' : ''}.</div>
+        <div class="ep-custom">
+          <input class="ep-in" id="ep-in" type="number" min="1" value="1" placeholder="Ep #">
+          <button class="btn solid" id="ep-go">Watch</button>
+        </div>
+      </div>`;
+  }
+
+  mdlBody.innerHTML = synHTML + srcHTML + epsHTML;
+  mdl.classList.add('on');
+  document.body.style.overflow = 'hidden';
+
+  wireModal();
+}
+
+function closeWatch() {
+  if (!mdl.classList.contains('on')) return;
+  mdl.classList.remove('on');
+  document.body.style.overflow = '';
+  activeAnime = null;
+}
+
+function wireModal() {
+  // Read-more expander
+  const moreBtn = $('mdl-more-btn');
+  if (moreBtn) {
+    moreBtn.addEventListener('click', () => {
+      $('mdl-syn').classList.remove('clamp');
+      moreBtn.remove();
+    });
+  }
+
+  // Source picker (persisted)
+  document.querySelectorAll('.src-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      currentSource = b.dataset.s;
+      if (lsOk) localStorage.setItem('hiw:source', currentSource);
+      document.querySelectorAll('.src-btn').forEach(x =>
+        x.classList.toggle('on', x.dataset.s === currentSource)
+      );
+    });
+  });
+
+  // Episode grid — single delegated listener handles all N buttons
+  const grid = $('ep-grid');
+  if (grid) {
+    grid.addEventListener('click', e => {
+      const btn = e.target.closest('.ep-btn');
+      if (btn) playEpisode(Number(btn.dataset.ep));
+    });
+  }
+
+  // Free-form episode input (airing / unknown count)
+  const go  = $('ep-go');
+  const inp = $('ep-in');
+  if (go && inp) {
+    const run = () => {
+      const n = Math.max(1, Math.floor(Number(inp.value) || 1));
+      playEpisode(n);
+    };
+    go.addEventListener('click', run);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  }
+}
+
+function playEpisode(ep) {
+  if (!activeAnime) return;
+  const src = SOURCES.find(s => s.id === currentSource) || SOURCES[0];
+  const url = src.build(activeAnime, ep);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  const t = getTitle(activeAnime);
+  toast(`Opening ${t.length > 20 ? t.slice(0,20) + '…' : t} · Ep ${ep}`);
+}
+
+mdlX.addEventListener('click', closeWatch);
+mdlBd.addEventListener('click', closeWatch);
 
 // ─── FETCH ALL ───────────────────────────────────────────────────────────────
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1073,8 +1394,11 @@ srchX.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === '/' && document.activeElement !== srch) { e.preventDefault(); srch.focus(); }
-  if (e.key === 'Escape' && document.activeElement === srch) { srch.blur(); }
+  if (e.key === '/' && document.activeElement !== srch && !mdl.classList.contains('on')) { e.preventDefault(); srch.focus(); }
+  if (e.key === 'Escape') {
+    if (mdl.classList.contains('on')) { closeWatch(); return; }
+    if (document.activeElement === srch) srch.blur();
+  }
 });
 
 expBtn.addEventListener('click', exportCSV);
