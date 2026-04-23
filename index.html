@@ -354,120 +354,223 @@ body{min-height:100vh}
 .vm-wrap{display:none;text-align:center;margin-top:28px}
 .vm-wrap.on{display:block}
 
-/* ── WATCH MODAL ── */
-.mdl-wrap{
-  position:fixed;inset:0;z-index:1000;
-  display:none;align-items:center;justify-content:center;
-  padding:20px;overflow-y:auto;
+/* ── PAGE ROUTING ── */
+/* Home is shown by default. When body gains .watching we swap to the watch
+   page and hide the filter tabs. Using display flips means only one page
+   lives in layout at a time — scroll, focus, and paint all stay clean. */
+.home-page{display:block}
+.watch-page{display:none}
+body.watching .home-page{display:none}
+body.watching .watch-page{display:block}
+body.watching .fbar{display:none}
+
+/* ── WATCH PAGE ── */
+.watch-page{
+  max-width:1460px;margin:0 auto;padding:20px 24px 80px;
+  animation:fadeIn .18s ease;
 }
-.mdl-wrap.on{display:flex}
-.mdl-bd{
-  position:absolute;inset:0;
-  background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
-  animation:fadeIn .2s ease;cursor:pointer;
-}
-[data-theme="dark"] .mdl-bd{background:rgba(0,0,0,.72)}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-.mdl{
-  position:relative;
+.w-top{
+  display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;
+}
+.back-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  height:34px;padding:0 14px;
+  font-family:var(--font);font-size:12px;font-weight:500;
+  border:1px solid var(--border);border-radius:20px;
+  background:var(--surface);color:var(--fg);
+  cursor:pointer;transition:all .15s;
+}
+.back-btn:hover{background:var(--surface2);border-color:var(--border2)}
+.back-btn svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.w-crumb{font-size:13px;color:var(--fg3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-crumb b{color:var(--fg);font-weight:500}
+
+.w-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 340px;
+  gap:20px;align-items:start;
+}
+.w-main{min-width:0;display:flex;flex-direction:column;gap:16px}
+.w-side{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:16px;box-shadow:var(--shadow);
-  width:100%;max-width:860px;max-height:calc(100vh - 40px);
-  display:flex;flex-direction:column;overflow:hidden;
-  animation:slideUp .25s cubic-bezier(.34,1.56,.64,1);
+  border-radius:var(--radius);overflow:hidden;
+  max-height:calc(100vh - 100px);
+  display:flex;flex-direction:column;
+  position:sticky;top:80px;
 }
 
-.mdl-x{
-  position:absolute;top:12px;right:12px;z-index:3;
-  width:30px;height:30px;border-radius:50%;
+/* Video frame */
+.v-frame{
+  position:relative;width:100%;aspect-ratio:16/9;
+  background:#000;border-radius:var(--radius);overflow:hidden;
+  border:1px solid var(--border);
+}
+.v-frame iframe{
+  position:absolute;inset:0;width:100%;height:100%;border:0;display:block;
+}
+.v-empty{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;
+  color:#9aa;font-size:13px;text-align:center;padding:30px;
+}
+.v-empty svg{width:30px;height:30px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;opacity:.5}
+
+/* Player controls row */
+.w-ctrls{
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  padding:12px 14px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+.w-ctrls-lbl{
+  font-size:10.5px;font-weight:600;color:var(--fg3);
+  text-transform:uppercase;letter-spacing:0.06em;
+  margin-right:4px;
+}
+.src-pick{display:flex;gap:5px;flex-wrap:wrap}
+.src-btn{
+  height:28px;padding:0 11px;
+  font-family:var(--font);font-size:11px;font-weight:500;
+  border:1px solid var(--border);border-radius:20px;
+  background:var(--surface2);color:var(--fg3);
+  cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.src-btn:hover{color:var(--fg);border-color:var(--border2)}
+.src-btn.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.src-btn.ext{border-style:dashed}
+.src-btn.ext.on{border-style:solid}
+.src-ext-ico{
+  width:10px;height:10px;stroke:currentColor;stroke-width:2;
+  fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.7;
+}
+
+.dub-tog{
+  display:flex;align-items:center;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;padding:2px;margin-left:auto;
+}
+.dub-tog button{
+  height:24px;padding:0 11px;
+  font-family:var(--font);font-size:10.5px;font-weight:500;
+  border:none;background:transparent;color:var(--fg3);
+  border-radius:18px;cursor:pointer;transition:all .15s;
+  letter-spacing:0.03em;
+}
+.dub-tog button.on{background:var(--fg);color:var(--bg)}
+
+.ext-link{
+  display:inline-flex;align-items:center;gap:5px;
+  height:28px;padding:0 11px;
+  font-family:var(--font);font-size:11px;font-weight:500;
+  border:1px solid var(--border);border-radius:20px;
+  background:var(--surface);color:var(--fg2);
+  cursor:pointer;transition:all .15s;text-decoration:none;
+}
+.ext-link:hover{background:var(--surface2);color:var(--fg);border-color:var(--border2)}
+.ext-link svg{width:11px;height:11px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* Anime info panel */
+.w-info{
   background:var(--surface);border:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;
-  color:var(--fg2);cursor:pointer;transition:all .15s;
+  border-radius:var(--radius);overflow:hidden;
+  display:flex;gap:16px;padding:16px 18px;
 }
-.mdl-x:hover{background:var(--surface3);color:var(--fg)}
-.mdl-x svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round}
-
-.mdl-hero{
-  display:flex;gap:20px;padding:22px 22px 18px;
-  background:var(--surface2);border-bottom:1px solid var(--border);
+.w-info-poster{
+  width:96px;flex-shrink:0;aspect-ratio:2/3;
+  border-radius:8px;overflow:hidden;
+  background:var(--surface2);border:1px solid var(--border);
 }
-.mdl-poster{
-  width:132px;flex-shrink:0;aspect-ratio:2/3;
-  border-radius:10px;overflow:hidden;
-  background:var(--surface3);border:1px solid var(--border);
-}
-.mdl-poster img{width:100%;height:100%;object-fit:cover;display:block}
-.mdl-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;padding-right:30px}
-.mdl-chips{display:flex;flex-wrap:wrap;gap:5px}
-.mdl-chip{
+.w-info-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.w-info-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.w-info-ep{font-size:11px;color:var(--fg3);font-weight:500;letter-spacing:0.04em;text-transform:uppercase}
+.w-title{font-size:18px;font-weight:600;color:var(--fg);line-height:1.3}
+.w-sub{font-size:12px;color:var(--fg3);line-height:1.5}
+.w-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.w-chip{
   font-size:10.5px;color:var(--fg2);font-weight:400;
-  background:var(--surface);border:1px solid var(--border);
+  background:var(--surface2);border:1px solid var(--border);
   padding:3px 9px;border-radius:20px;
   display:inline-flex;align-items:center;gap:4px;
 }
-.mdl-chip.wd{background:var(--green-bg);border-color:var(--green-bd);color:var(--green-fg);font-weight:500}
-.mdl-chip.wd svg{width:10px;height:10px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.mdl-title{font-size:18px;font-weight:600;line-height:1.3;color:var(--fg);margin-top:2px}
-.mdl-sub{font-size:12px;color:var(--fg3);line-height:1.5}
+.w-chip.wd{background:var(--green-bg);border-color:var(--green-bd);color:var(--green-fg);font-weight:500;cursor:pointer}
+.w-chip.wd svg{width:10px;height:10px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.w-chip.add{cursor:pointer;border-style:dashed}
+.w-chip.add:hover{color:var(--fg);border-color:var(--border2)}
 
-.mdl-body{padding:18px 22px 22px;overflow-y:auto;flex:1}
-
-.mdl-synopsis{font-size:12.5px;color:var(--fg2);line-height:1.6}
-.mdl-synopsis.clamp{
-  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+.w-syn-wrap{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;
 }
-.mdl-more{
+.w-syn-lbl{
+  font-size:10.5px;font-weight:600;color:var(--fg3);
+  text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;
+}
+.w-syn{font-size:12.5px;color:var(--fg2);line-height:1.65}
+.w-syn.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.w-more{
   font-size:11px;color:var(--fg3);cursor:pointer;
   background:none;border:none;padding:4px 0 0;
   font-family:var(--font);font-weight:500;
 }
-.mdl-more:hover{color:var(--fg)}
+.w-more:hover{color:var(--fg)}
 
-.mdl-section{margin-bottom:18px}
-.mdl-section:last-child{margin-bottom:0}
-.mdl-lbl{
-  font-size:10.5px;font-weight:600;color:var(--fg3);
-  text-transform:uppercase;letter-spacing:0.06em;margin-bottom:9px;
-}
-
-.src-pick{display:flex;gap:6px;flex-wrap:wrap}
-.src-btn{
-  height:30px;padding:0 13px;
+/* Episode nav buttons above video */
+.ep-nav{display:flex;gap:8px}
+.ep-nav button{
+  flex:1;height:34px;padding:0 12px;
   font-family:var(--font);font-size:11.5px;font-weight:500;
   border:1px solid var(--border);border-radius:20px;
-  background:var(--surface);color:var(--fg3);
+  background:var(--surface);color:var(--fg);
   cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
 }
-.src-btn:hover{color:var(--fg);border-color:var(--border2)}
-.src-btn.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.ep-nav button:hover:not(:disabled){background:var(--surface2);border-color:var(--border2)}
+.ep-nav button:disabled{opacity:.4;cursor:not-allowed}
+.ep-nav svg{width:12px;height:12px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 
-.ep-grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;
+/* Episode sidebar */
+.ep-head{
+  padding:13px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--surface2);flex-shrink:0;
 }
-.ep-btn{
-  aspect-ratio:1;font-family:var(--font);font-size:12px;font-weight:500;
-  border:1px solid var(--border);border-radius:var(--radius-sm);
+.ep-head-t{font-size:12.5px;font-weight:600;color:var(--fg)}
+.ep-head .cnt{background:var(--surface3);color:var(--fg3);border:1px solid var(--border)}
+.ep-jump{
+  width:70px;height:26px;padding:0 10px;
+  font-family:var(--font);font-size:11px;
+  border:1px solid var(--border);border-radius:14px;
+  background:var(--surface);color:var(--fg);outline:none;
+}
+.ep-jump:focus{border-color:var(--border2)}
+.ep-list{
+  overflow-y:auto;padding:10px;flex:1;
+  display:grid;grid-template-columns:repeat(5,1fr);gap:6px;align-content:start;
+}
+.ep-item{
+  font-family:var(--font);font-size:11.5px;font-weight:500;
+  aspect-ratio:1;border:1px solid var(--border);border-radius:var(--radius-sm);
   background:var(--surface);color:var(--fg);
   cursor:pointer;transition:all .12s;
   display:flex;align-items:center;justify-content:center;
 }
-.ep-btn:hover{background:var(--fg);color:var(--bg);border-color:var(--fg);transform:translateY(-1px)}
-.ep-btn:active{transform:translateY(0)}
+.ep-item:hover{border-color:var(--border2);background:var(--surface2)}
+.ep-item.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 
-.ep-custom{display:flex;gap:8px;align-items:center;margin-top:8px}
-.ep-in{
-  flex:1;max-width:120px;height:32px;padding:0 11px;
+.ep-empty{
+  padding:20px 14px;font-size:12px;color:var(--fg3);text-align:center;
+  display:flex;flex-direction:column;gap:10px;align-items:center;
+}
+.ep-input-wrap{display:flex;gap:8px;justify-content:center;align-items:center}
+.ep-input{
+  width:80px;height:32px;padding:0 11px;
   font-family:var(--font);font-size:12px;
   border:1px solid var(--border);border-radius:20px;
-  background:var(--surface2);color:var(--fg);outline:none;
-  transition:border-color .15s,background .2s;
+  background:var(--surface2);color:var(--fg);outline:none;text-align:center;
 }
-.ep-in:focus{border-color:var(--border2);background:var(--surface)}
-
-.mdl-empty{font-size:12px;color:var(--fg3);margin-bottom:4px}
-.mdl-note{font-size:10.5px;color:var(--fg3);margin-top:10px;line-height:1.5}
+.ep-input:focus{border-color:var(--border2);background:var(--surface)}
 
 /* ── TOAST ── */
 #toast{
@@ -484,6 +587,12 @@ body{min-height:100vh}
 #toast.on{transform:translateX(-50%) translateY(0)}
 
 /* ── MOBILE ── */
+@media(max-width:968px){
+  /* Collapse watch page to one column below laptop width. */
+  .w-layout{grid-template-columns:1fr}
+  .w-side{position:static;max-height:none}
+  .ep-list{max-height:360px}
+}
 @media(max-width:768px){
   .hdr-inner{padding:0 16px;gap:8px;height:56px}
   .stat{display:none}
@@ -491,13 +600,17 @@ body{min-height:100vh}
   .grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
   .fbar-inner{padding:0 14px;gap:2px}
   .tab{padding:0 10px;font-size:11.5px}
-  .mdl-wrap{padding:12px}
-  .mdl-hero{padding:16px;gap:14px}
-  .mdl-poster{width:96px}
-  .mdl-info{padding-right:28px}
-  .mdl-title{font-size:16px}
-  .mdl-body{padding:14px 16px 18px}
-  .ep-grid{grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px}
+
+  .watch-page{padding:14px 14px 70px}
+  .w-top{margin-bottom:14px}
+  .w-crumb{font-size:12px}
+  .w-info{padding:14px;gap:12px}
+  .w-info-poster{width:80px}
+  .w-title{font-size:15px}
+  .w-syn-wrap{padding:14px}
+  .w-ctrls{padding:10px 12px;gap:8px}
+  .dub-tog{margin-left:0}
+  .ep-list{grid-template-columns:repeat(4,1fr);max-height:280px}
 }
 @media(max-width:480px){
   .srch{max-width:160px}
@@ -561,7 +674,7 @@ body{min-height:100vh}
   </div>
 </header>
 
-<main class="main">
+<main class="main home-page" id="home-page">
   <div class="banner warn" id="b-offline">
     <svg viewBox="0 0 24 24"><path d="M1 6l4 4m14-4-4 4M5 10a11 11 0 0 1 14 0M8 13a6 6 0 0 1 8 0m-4 5h.01"/></svg>
     You're offline — showing cached data only.
@@ -584,23 +697,57 @@ body{min-height:100vh}
   </div>
 </main>
 
-<div class="mdl-wrap" id="mdl" role="dialog" aria-modal="true" aria-labelledby="mdl-title">
-  <div class="mdl-bd" id="mdl-bd"></div>
-  <div class="mdl">
-    <button class="mdl-x" id="mdl-x" aria-label="Close">
-      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+<section class="watch-page" id="watch-page" aria-labelledby="w-title">
+  <div class="w-top">
+    <button class="back-btn" id="back-btn" aria-label="Back to list">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
     </button>
-    <div class="mdl-hero">
-      <div class="mdl-poster" id="mdl-poster"></div>
-      <div class="mdl-info">
-        <div class="mdl-chips" id="mdl-chips"></div>
-        <div class="mdl-title" id="mdl-title"></div>
-        <div class="mdl-sub" id="mdl-sub"></div>
+    <div class="w-crumb" id="w-crumb"></div>
+  </div>
+
+  <div class="w-layout">
+    <div class="w-main">
+      <div class="v-frame" id="v-frame">
+        <div class="v-empty" id="v-empty">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Pick an episode from the list to start watching</span>
+        </div>
+      </div>
+
+      <div class="w-ctrls">
+        <span class="w-ctrls-lbl">Source</span>
+        <div class="src-pick" id="src-pick"></div>
+        <div class="dub-tog" id="dub-tog">
+          <button class="on" data-d="sub">SUB</button>
+          <button data-d="dub">DUB</button>
+        </div>
+        <a class="ext-link" id="ext-link" target="_blank" rel="noopener noreferrer" style="display:none">
+          <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Open externally
+        </a>
+      </div>
+
+      <div class="ep-nav" id="ep-nav"></div>
+
+      <div class="w-info" id="w-info"></div>
+
+      <div class="w-syn-wrap" id="w-syn-wrap" style="display:none">
+        <div class="w-syn-lbl">Synopsis</div>
+        <p class="w-syn" id="w-syn"></p>
       </div>
     </div>
-    <div class="mdl-body" id="mdl-body"></div>
+
+    <aside class="w-side">
+      <div class="ep-head">
+        <div class="ep-head-t">Episodes <span class="cnt" id="ep-count">—</span></div>
+        <input class="ep-jump" id="ep-jump" type="number" min="1" placeholder="Jump">
+      </div>
+      <div class="ep-list" id="ep-list"></div>
+    </aside>
   </div>
-</div>
+</section>
+
 
 <div id="toast">
   <svg id="t-ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -662,8 +809,8 @@ const CHUNK_PAGES       = 20;    // each "View More" click loads this many pages
 const BATCH_SIZE        = 60;    // cards rendered per virtualization batch
 const SENTINEL_MARGIN   = '1500px 0px'; // preload next batch well before visible
 const SEARCH_DEBOUNCE   = 180;   // ms — smooths live search typing
-const FETCH_DELAY       = 420;   // ms between pages (unchanged)
-const MAX_RETRY         = 3;
+const FETCH_DELAY       = 600;   // ms between pages — stays well under Jikan's per-sec cap
+const MAX_RETRY         = 5;     // each failed page retries with exponential backoff
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let allAnime = [];
@@ -716,14 +863,24 @@ const dmBtn   = $('dm-btn');
 const dmIco   = $('dm-ico');
 const vmWrap  = $('vm-wrap');
 const vmBtn   = $('vm-btn');
-const mdl       = $('mdl');
-const mdlBd     = $('mdl-bd');
-const mdlX      = $('mdl-x');
-const mdlPoster = $('mdl-poster');
-const mdlTitle  = $('mdl-title');
-const mdlSub    = $('mdl-sub');
-const mdlChips  = $('mdl-chips');
-const mdlBody   = $('mdl-body');
+
+// Watch page DOM refs
+const homePage  = $('home-page');
+const watchPage = $('watch-page');
+const backBtn   = $('back-btn');
+const wCrumb    = $('w-crumb');
+const vFrame    = $('v-frame');
+const vEmpty    = $('v-empty');
+const srcPick   = $('src-pick');
+const dubTog    = $('dub-tog');
+const extLink   = $('ext-link');
+const wInfo     = $('w-info');
+const wSynWrap  = $('w-syn-wrap');
+const wSyn      = $('w-syn');
+const epNav     = $('ep-nav');
+const epList    = $('ep-list');
+const epCount   = $('ep-count');
+const epJump    = $('ep-jump');
 
 // ─── DARK MODE ───────────────────────────────────────────────────────────────
 let dark = document.documentElement.hasAttribute('data-theme');
@@ -894,10 +1051,10 @@ function makeCard(anime) {
     onToggle(anime, el, e.target.checked);
   });
 
-  // Click anywhere on the card except the watched toggle opens the watch modal.
+  // Click anywhere on the card except the watched toggle opens the watch page.
   el.addEventListener('click', e => {
     if (e.target.closest('.sw')) return;
-    openWatch(anime);
+    navWatch(anime.mal_id, 1);
   });
 
   return el;
@@ -1056,39 +1213,136 @@ function onFetchApplied() {
   }
 }
 
-// ─── WATCH MODAL ─────────────────────────────────────────────────────────────
-// Streaming sources. Each builder returns the URL to open for a given
-// anime + episode. Streaming sites rename/move often; if one breaks, swap the
-// builder here. Miruro supports direct MAL deep-linking with episode; the
-// others fall back to a title search since they don't expose MAL routing.
+// ─── WATCH PAGE ──────────────────────────────────────────────────────────────
+// Streaming sources. `embed` returns an iframe URL for in-page playback, or
+// null if that site blocks embedding (X-Frame-Options / CSP frame-ancestors).
+// `external` is always present — it's where "Open externally" and the
+// non-embeddable fallback send the user.
+//
+// Streaming sites rename/relaunch constantly. If one stops working: swap its
+// URL builder here and nothing else changes. The first source with a non-null
+// `embed` becomes the default.
 const SOURCES = [
-  { id: 'miruro',   label: 'Miruro',   build: (a, ep) => `https://www.miruro.to/watch?id=${a.mal_id}&ep=${ep}` },
-  { id: 'hianime',  label: 'HiAnime',  build: (a)     => `https://hianime.to/search?keyword=${encodeURIComponent(a.title)}` },
-  { id: 'allanime', label: 'AllAnime', build: (a)     => `https://allanime.to/search?q=${encodeURIComponent(a.title)}` }
+  {
+    // Built for iframe embedding. Anime pattern uses a MAL-prefixed id.
+    id: 'vidsrc', label: 'VidSrc',
+    embed:    (a, ep, dub) => `https://vidsrc.cc/v2/embed/anime/ani${a.mal_id}/${ep}/${dub ? 'dub' : 'sub'}`,
+    external: (a, ep, dub) => `https://vidsrc.cc/v2/embed/anime/ani${a.mal_id}/${ep}/${dub ? 'dub' : 'sub'}`
+  },
+  {
+    // Another embed-first aggregator.
+    id: '2embed', label: '2Embed',
+    embed:    (a, ep) => `https://www.2embed.cc/embedanime/${a.mal_id}&ep=${ep}`,
+    external: (a, ep) => `https://www.2embed.cc/embedanime/${a.mal_id}&ep=${ep}`
+  },
+  {
+    // Miruro has a great UI but sets X-Frame-Options: sameorigin, so we can
+    // only link out, never embed.
+    id: 'miruro', label: 'Miruro',
+    embed:    null,
+    external: (a, ep, dub) => `https://www.miruro.to/watch?id=${a.mal_id}&ep=${ep}${dub ? '&type=dub' : ''}`
+  },
+  {
+    // HiAnime also blocks embedding. We fall back to title search.
+    id: 'hianime', label: 'HiAnime',
+    embed:    null,
+    external: (a)  => `https://hianime.to/search?keyword=${encodeURIComponent(a.title)}`
+  }
 ];
-let currentSource = (lsOk && localStorage.getItem('hiw:source')) || 'miruro';
-if (!SOURCES.find(s => s.id === currentSource)) currentSource = 'miruro';
 
-let activeAnime = null;
+// Default to the first source that can actually embed. If the user previously
+// picked a non-embedding source we still honor it (they made that choice),
+// but first-time visitors get a working iframe.
+const DEFAULT_SOURCE = (SOURCES.find(s => s.embed) || SOURCES[0]).id;
+let currentSource = DEFAULT_SOURCE;
+const _savedSrc = lsOk && localStorage.getItem('hiw:source');
+if (_savedSrc && SOURCES.find(s => s.id === _savedSrc)) currentSource = _savedSrc;
+let currentDub = (lsOk && localStorage.getItem('hiw:dub') === '1');
 
 const CHECK_SVG = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+// Small cache for anime fetched by ID via deep-links (e.g. someone lands on
+// #/watch/5 without the grid having scrolled to it yet).
+const animeById = new Map();
+
+// Active watch state. Kept simple — reroute rebuilds from this.
+let wAnime  = null;
+let wEp     = 1;
 
 function escHTML(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
                   .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function openWatch(anime) {
-  activeAnime = anime;
+// ─── ROUTING ─────────────────────────────────────────────────────────────────
+// Hash routes: "" or "#/" = home, "#/watch/{mal_id}" or "#/watch/{mal_id}/{ep}"
+// = watch page. Everything reacts to hashchange so Back/Forward buttons work.
+function parseRoute() {
+  const h = location.hash.replace(/^#\/?/, '');
+  if (h.startsWith('watch/')) {
+    const parts = h.split('/');
+    return { page: 'watch', malId: Number(parts[1]), ep: Math.max(1, Number(parts[2]) || 1) };
+  }
+  return { page: 'home' };
+}
 
-  // Poster
+function navHome() {
+  // Using history so Back from the list doesn't return to /watch.
+  if (location.hash) history.pushState('', '', location.pathname + location.search);
+  onRouteChange();
+}
+
+function navWatch(malId, ep = 1) {
+  const next = `#/watch/${malId}/${ep}`;
+  if (location.hash === next) onRouteChange();
+  else location.hash = next;
+}
+
+async function onRouteChange() {
+  const r = parseRoute();
+  if (r.page === 'watch' && r.malId) {
+    document.body.classList.add('watching');
+    // Keep the header's filter tabs hidden via the body class.
+    try {
+      const anime = await resolveAnime(r.malId);
+      renderWatch(anime, r.ep);
+    } catch (e) {
+      renderWatchError(r.malId);
+    }
+  } else {
+    document.body.classList.remove('watching');
+    // Stop any playing video when leaving the page.
+    clearIframe();
+    wAnime = null;
+  }
+}
+
+async function resolveAnime(malId) {
+  // Prefer what we already have in memory.
+  const hit = allAnime.find(a => a.mal_id === malId) || animeById.get(malId);
+  if (hit) return hit;
+
+  // Otherwise fetch full details from Jikan. Covers direct links.
+  const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}/full`);
+  if (!res.ok) throw new Error('not_found');
+  const j = await res.json();
+  animeById.set(malId, j.data);
+  return j.data;
+}
+
+window.addEventListener('hashchange', onRouteChange);
+
+// ─── RENDER WATCH PAGE ───────────────────────────────────────────────────────
+function renderWatch(anime, ep) {
+  wAnime = anime;
+  wEp    = ep;
+
+  // Breadcrumb
+  const t = getTitle(anime);
+  wCrumb.innerHTML = `<b>${escHTML(t)}</b> · Episode ${ep}`;
+
+  // Info panel
   const img = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '';
-  mdlPoster.innerHTML = img ? `<img src="${escHTML(img)}" alt="">` : '';
-
-  // Title (respects language preference)
-  mdlTitle.textContent = getTitle(anime);
-
-  // Subtitle: type · year · episodes · score
   const bits = [];
   if (anime.type) bits.push(anime.type);
   const yr = anime.year || (anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null);
@@ -1096,131 +1350,249 @@ function openWatch(anime) {
   if (anime.episodes) bits.push(`${anime.episodes} episodes`);
   else if (anime.status === 'Currently Airing') bits.push('Airing');
   if (typeof anime.score === 'number') bits.push(`★ ${anime.score.toFixed(2)}`);
-  mdlSub.textContent = bits.join(' · ');
 
-  // Chips: watched state + first few genres
   const chips = [];
   if (watched[anime.mal_id]) {
-    chips.push(`<span class="mdl-chip wd">${CHECK_SVG} Watched</span>`);
+    chips.push(`<span class="w-chip wd" id="w-chip-wd" title="Mark as unwatched">${CHECK_SVG} Watched</span>`);
+  } else {
+    chips.push(`<span class="w-chip add" id="w-chip-wd" title="Mark as watched">+ Mark watched</span>`);
   }
-  (anime.genres || []).slice(0, 4).forEach(g => {
-    chips.push(`<span class="mdl-chip">${escHTML(g.name)}</span>`);
+  (anime.genres || []).slice(0, 5).forEach(g => {
+    chips.push(`<span class="w-chip">${escHTML(g.name)}</span>`);
   });
-  mdlChips.innerHTML = chips.join('');
 
-  // Body: synopsis + source picker + episodes
-  const syn = (anime.synopsis || '').trim();
-  const synHTML = syn
-    ? `<div class="mdl-section">
-         <div class="mdl-lbl">Synopsis</div>
-         <p class="mdl-synopsis${syn.length > 280 ? ' clamp' : ''}" id="mdl-syn">${escHTML(syn)}</p>
-         ${syn.length > 280 ? `<button class="mdl-more" id="mdl-more-btn">Read more</button>` : ''}
-       </div>`
-    : '';
-
-  const srcHTML = `
-    <div class="mdl-section">
-      <div class="mdl-lbl">Streaming source</div>
-      <div class="src-pick" id="src-pick">
-        ${SOURCES.map(s =>
-          `<button class="src-btn${s.id === currentSource ? ' on' : ''}" data-s="${s.id}">${s.label}</button>`
-        ).join('')}
-      </div>
+  wInfo.innerHTML = `
+    ${img ? `<div class="w-info-poster"><img src="${escHTML(img)}" alt=""></div>` : ''}
+    <div class="w-info-body">
+      <div class="w-info-ep">Episode ${ep}${anime.episodes ? ` of ${anime.episodes}` : ''}</div>
+      <div class="w-title">${escHTML(t)}</div>
+      <div class="w-sub">${bits.join(' · ')}</div>
+      <div class="w-chips">${chips.join('')}</div>
     </div>`;
 
-  // Episodes: explicit grid if known, otherwise a free-form input
-  let epsHTML;
-  const n = anime.episodes;
-  if (n && n > 0) {
-    let grid = '';
-    for (let i = 1; i <= n; i++) grid += `<button class="ep-btn" data-ep="${i}">${i}</button>`;
-    epsHTML = `
-      <div class="mdl-section">
-        <div class="mdl-lbl">Episodes (${n})</div>
-        <div class="ep-grid" id="ep-grid">${grid}</div>
-        <div class="mdl-note">Clicking an episode opens it in a new tab on the selected source.</div>
-      </div>`;
+  // Watched toggle from within the watch page
+  const wd = $('w-chip-wd');
+  if (wd) wd.addEventListener('click', () => toggleWatchedFromWatchPage(anime));
+
+  // Synopsis
+  const syn = (anime.synopsis || '').trim();
+  if (syn) {
+    wSynWrap.style.display = '';
+    const clamp = syn.length > 320;
+    wSyn.className = 'w-syn' + (clamp ? ' clamp' : '');
+    wSyn.textContent = syn;
+    // Re-wire read-more (remove prior button if any)
+    const prev = $('w-more-btn');
+    if (prev) prev.remove();
+    if (clamp) {
+      const btn = document.createElement('button');
+      btn.className = 'w-more';
+      btn.id = 'w-more-btn';
+      btn.textContent = 'Read more';
+      btn.addEventListener('click', () => {
+        wSyn.classList.remove('clamp');
+        btn.remove();
+      });
+      wSynWrap.appendChild(btn);
+    }
   } else {
-    const airing = anime.status === 'Currently Airing';
-    epsHTML = `
-      <div class="mdl-section">
-        <div class="mdl-lbl">Episode</div>
-        <div class="mdl-empty">Episode count unknown${airing ? ' — series is currently airing' : ''}.</div>
-        <div class="ep-custom">
-          <input class="ep-in" id="ep-in" type="number" min="1" value="1" placeholder="Ep #">
-          <button class="btn solid" id="ep-go">Watch</button>
-        </div>
-      </div>`;
+    wSynWrap.style.display = 'none';
   }
 
-  mdlBody.innerHTML = synHTML + srcHTML + epsHTML;
-  mdl.classList.add('on');
-  document.body.style.overflow = 'hidden';
+  // Sources. External-only ones get a small "↗" so the user knows they'll
+  // jump out of the page rather than embed.
+  const EXT_ICO = `<svg class="src-ext-ico" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+  srcPick.innerHTML = SOURCES.map(s =>
+    `<button class="src-btn${s.id === currentSource ? ' on' : ''}${!s.embed ? ' ext' : ''}" data-s="${s.id}">${s.label}${!s.embed ? EXT_ICO : ''}</button>`
+  ).join('');
 
-  wireModal();
-}
-
-function closeWatch() {
-  if (!mdl.classList.contains('on')) return;
-  mdl.classList.remove('on');
-  document.body.style.overflow = '';
-  activeAnime = null;
-}
-
-function wireModal() {
-  // Read-more expander
-  const moreBtn = $('mdl-more-btn');
-  if (moreBtn) {
-    moreBtn.addEventListener('click', () => {
-      $('mdl-syn').classList.remove('clamp');
-      moreBtn.remove();
-    });
-  }
-
-  // Source picker (persisted)
-  document.querySelectorAll('.src-btn').forEach(b => {
-    b.addEventListener('click', () => {
-      currentSource = b.dataset.s;
-      if (lsOk) localStorage.setItem('hiw:source', currentSource);
-      document.querySelectorAll('.src-btn').forEach(x =>
-        x.classList.toggle('on', x.dataset.s === currentSource)
-      );
-    });
+  // Dub toggle UI
+  dubTog.querySelectorAll('button').forEach(b => {
+    const isDub = b.dataset.d === 'dub';
+    b.classList.toggle('on', isDub === currentDub);
   });
 
-  // Episode grid — single delegated listener handles all N buttons
-  const grid = $('ep-grid');
-  if (grid) {
-    grid.addEventListener('click', e => {
-      const btn = e.target.closest('.ep-btn');
-      if (btn) playEpisode(Number(btn.dataset.ep));
-    });
-  }
+  // Episode list
+  buildEpisodeList(anime, ep);
 
-  // Free-form episode input (airing / unknown count)
-  const go  = $('ep-go');
-  const inp = $('ep-in');
-  if (go && inp) {
-    const run = () => {
-      const n = Math.max(1, Math.floor(Number(inp.value) || 1));
-      playEpisode(n);
-    };
-    go.addEventListener('click', run);
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  // Prev/Next buttons
+  buildEpNav(anime, ep);
+
+  // Load video
+  loadVideo();
+
+  // Reset scroll to top of watch page
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function renderWatchError(malId) {
+  wCrumb.innerHTML = `<b>Not found</b>`;
+  wInfo.innerHTML = `<div class="w-info-body"><div class="w-title">Couldn't load anime #${malId}</div><div class="w-sub">Check your connection and try again, or head back to the list.</div></div>`;
+  wSynWrap.style.display = 'none';
+  srcPick.innerHTML = '';
+  epNav.innerHTML = '';
+  epList.innerHTML = '';
+  epCount.textContent = '—';
+  clearIframe();
+}
+
+function buildEpisodeList(anime, activeEp) {
+  const n = anime.episodes;
+  epCount.textContent = n || '—';
+
+  if (n && n > 0) {
+    // Single long string is much cheaper than appending N nodes.
+    let s = '';
+    for (let i = 1; i <= n; i++) {
+      s += `<button class="ep-item${i === activeEp ? ' on' : ''}" data-ep="${i}">${i}</button>`;
+    }
+    epList.innerHTML = s;
+    epJump.max = n;
+  } else {
+    const airing = anime.status === 'Currently Airing';
+    epList.innerHTML = `
+      <div class="ep-empty" style="grid-column:1/-1">
+        <div>Episode count unknown${airing ? ' — currently airing' : ''}.</div>
+        <div class="ep-input-wrap">
+          <input class="ep-input" id="ep-free" type="number" min="1" value="${activeEp}">
+          <button class="btn solid" id="ep-free-go">Watch</button>
+        </div>
+      </div>`;
+    epJump.max = '';
+    const go = $('ep-free-go'), inp = $('ep-free');
+    if (go && inp) {
+      const run = () => navWatch(anime.mal_id, Math.max(1, Math.floor(Number(inp.value) || 1)));
+      go.addEventListener('click', run);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+    }
   }
 }
 
-function playEpisode(ep) {
-  if (!activeAnime) return;
+function buildEpNav(anime, ep) {
+  const max = anime.episodes || Infinity;
+  const prevDisabled = ep <= 1;
+  const nextDisabled = ep >= max;
+  epNav.innerHTML = `
+    <button id="ep-prev" ${prevDisabled ? 'disabled' : ''}>
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Previous
+    </button>
+    <button id="ep-next" ${nextDisabled ? 'disabled' : ''}>
+      Next
+      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>`;
+  const prev = $('ep-prev'), next = $('ep-next');
+  if (prev && !prevDisabled) prev.addEventListener('click', () => navWatch(anime.mal_id, ep - 1));
+  if (next && !nextDisabled) next.addEventListener('click', () => navWatch(anime.mal_id, ep + 1));
+}
+
+function loadVideo() {
+  if (!wAnime) return;
   const src = SOURCES.find(s => s.id === currentSource) || SOURCES[0];
-  const url = src.build(activeAnime, ep);
-  window.open(url, '_blank', 'noopener,noreferrer');
-  const t = getTitle(activeAnime);
-  toast(`Opening ${t.length > 20 ? t.slice(0,20) + '…' : t} · Ep ${ep}`);
+
+  // Always update the external link regardless of whether we embed.
+  const extUrl = src.external(wAnime, wEp, currentDub);
+  extLink.href = extUrl;
+  extLink.style.display = '';
+
+  if (src.embed) {
+    const url = src.embed(wAnime, wEp, currentDub);
+    // Build iframe fresh each swap so we don't accumulate history inside it.
+    vFrame.innerHTML = `
+      <iframe src="${escHTML(url)}"
+              allowfullscreen
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              referrerpolicy="no-referrer"></iframe>`;
+  } else {
+    // Source doesn't allow iframe embedding — give a one-click way out.
+    vFrame.innerHTML = `
+      <div class="v-empty">
+        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <div><b>${escHTML(src.label)}</b> doesn't allow in-page embedding.</div>
+        <a class="btn solid" href="${escHTML(extUrl)}" target="_blank" rel="noopener noreferrer" style="margin-top:4px">Open on ${escHTML(src.label)}</a>
+        <div style="font-size:11.5px;opacity:.7;margin-top:2px">Or pick an embed-friendly source above ↑</div>
+      </div>`;
+  }
 }
 
-mdlX.addEventListener('click', closeWatch);
-mdlBd.addEventListener('click', closeWatch);
+function clearIframe() {
+  if (!vFrame) return;
+  vFrame.innerHTML = `
+    <div class="v-empty">
+      <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span>Pick an episode from the list to start watching</span>
+    </div>`;
+}
+
+function toggleWatchedFromWatchPage(anime) {
+  const isW = !!watched[anime.mal_id];
+  if (isW) {
+    delete watched[anime.mal_id];
+    lsDel(anime.mal_id);
+  } else {
+    watched[anime.mal_id] = true;
+    lsAdd(anime);
+    toast('Marked as watched');
+  }
+  // Sync the home grid's card if present.
+  const card = grid.querySelector(`.card[data-id="${anime.mal_id}"]`);
+  if (card) {
+    card.classList.toggle('watched', !isW);
+    const cb = card.querySelector('input[type=checkbox]');
+    if (cb) cb.checked = !isW;
+    const lbl = card.querySelector('.swlabel');
+    if (lbl) lbl.innerHTML = (!isW)
+      ? EYE_ON + ' Watched'
+      : EYE_OFF + ' Unwatched';
+  }
+  updateCounts();
+  // Re-render the chip area only, without rebuilding the whole page.
+  renderWatch(anime, wEp);
+}
+
+// ─── EVENT WIRING FOR WATCH PAGE ─────────────────────────────────────────────
+backBtn.addEventListener('click', navHome);
+
+// Delegated listener for episode list — single handler for any N buttons.
+epList.addEventListener('click', e => {
+  const btn = e.target.closest('.ep-item');
+  if (!btn || !wAnime) return;
+  navWatch(wAnime.mal_id, Number(btn.dataset.ep));
+});
+
+// Jump-to-episode input
+epJump.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !wAnime) return;
+  const n = Math.max(1, Math.floor(Number(epJump.value) || 1));
+  const cap = wAnime.episodes || n;
+  navWatch(wAnime.mal_id, Math.min(n, cap));
+  epJump.value = '';
+});
+
+// Source picker (delegated; srcPick is rebuilt on every renderWatch)
+srcPick.addEventListener('click', e => {
+  const btn = e.target.closest('.src-btn');
+  if (!btn) return;
+  currentSource = btn.dataset.s;
+  if (lsOk) localStorage.setItem('hiw:source', currentSource);
+  srcPick.querySelectorAll('.src-btn').forEach(x =>
+    x.classList.toggle('on', x.dataset.s === currentSource)
+  );
+  loadVideo();
+});
+
+// Dub / Sub toggle
+dubTog.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  currentDub = btn.dataset.d === 'dub';
+  if (lsOk) localStorage.setItem('hiw:dub', currentDub ? '1' : '0');
+  dubTog.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', (b.dataset.d === 'dub') === currentDub)
+  );
+  loadVideo();
+});
+
 
 // ─── FETCH ALL ───────────────────────────────────────────────────────────────
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1394,9 +1766,13 @@ srchX.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === '/' && document.activeElement !== srch && !mdl.classList.contains('on')) { e.preventDefault(); srch.focus(); }
+  // "/" focuses search, but only on the home page.
+  if (e.key === '/' && document.activeElement !== srch && !document.body.classList.contains('watching')) {
+    e.preventDefault(); srch.focus();
+  }
   if (e.key === 'Escape') {
-    if (mdl.classList.contains('on')) { closeWatch(); return; }
+    // If we're on the watch page, Escape goes back to home.
+    if (document.body.classList.contains('watching')) { navHome(); return; }
     if (document.activeElement === srch) srch.blur();
   }
 });
@@ -1439,6 +1815,8 @@ if (!lsOk) toast('Private mode — watched status won\'t persist across sessions
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 loadAll();
+// Resolve any initial hash (deep-links like #/watch/21/3 should work on load).
+onRouteChange();
 </script>
 </body>
 </html>
