@@ -349,6 +349,10 @@ body{min-height:100vh}
 /* ── SENTINEL (virtualization trigger) ── */
 .sentinel{grid-column:1/-1;height:1px;pointer-events:none;visibility:hidden}
 
+/* ── VIEW MORE ── */
+.vm-wrap{display:none;text-align:center;margin-top:28px}
+.vm-wrap.on{display:block}
+
 /* ── TOAST ── */
 #toast{
   position:fixed;bottom:24px;left:50%;
@@ -452,6 +456,9 @@ body{min-height:100vh}
     </div>
   </div>
   <div class="grid" id="grid"></div>
+  <div class="vm-wrap" id="vm-wrap">
+    <button class="btn solid" id="vm-btn">View More</button>
+  </div>
 </main>
 
 <div id="toast">
@@ -509,7 +516,8 @@ function lsDel(id) {
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 // Tuning knobs for perf. These prevent the runaway-fetch + unbounded-DOM
 // growth that was freezing tabs left alone.
-const MAX_PAGES         = 40;    // cap API pagination (~1000 top anime)
+const MAX_PAGES         = 40;    // cap API pagination for the initial load (~1000 top anime)
+const CHUNK_PAGES       = 20;    // each "View More" click loads this many pages (~500 anime)
 const BATCH_SIZE        = 60;    // cards rendered per virtualization batch
 const SENTINEL_MARGIN   = '1500px 0px'; // preload next batch well before visible
 const SEARCH_DEBOUNCE   = 180;   // ms — smooths live search typing
@@ -565,6 +573,8 @@ const cWatched= $('c-watched');
 const cUnwatched = $('c-unwatched');
 const dmBtn   = $('dm-btn');
 const dmIco   = $('dm-ico');
+const vmWrap  = $('vm-wrap');
+const vmBtn   = $('vm-btn');
 
 // ─── DARK MODE ───────────────────────────────────────────────────────────────
 let dark = document.documentElement.hasAttribute('data-theme');
@@ -919,16 +929,19 @@ async function fetchPg(pg, attempt = 0) {
   }
 }
 
-async function loadAll(startPg = 1) {
+async function loadAll(startPg = 1, endPg = MAX_PAGES) {
   aborted = false;
   lprog.classList.add('on');
   if (renderedCount === 0) addSkels(12);
   setProgress(2);
+  vmWrap.classList.remove('on');
+  totalPg = null; // recomputed per call against the current chunk's endPg
 
   let pg = startPg, hasMore = true;
+  let capHit = false;
 
   try {
-    while (hasMore && !aborted && pg <= MAX_PAGES) {
+    while (hasMore && !aborted && pg <= endPg) {
       const json = await fetchPg(pg);
       const items = (json.data || []).filter(a => {
         if (seenIds.has(a.mal_id)) return false;
@@ -936,11 +949,18 @@ async function loadAll(startPg = 1) {
         return true;
       });
 
-      // Cap totalPg at MAX_PAGES so the progress bar reflects the real ceiling.
+      const apiHasMore = json.pagination?.has_next_page ?? false;
+
+      // Clamp the displayed total to whichever comes first: the API's real
+      // last page, or this chunk's endPg.
       if (!totalPg && json.pagination?.last_visible_page) {
-        totalPg = Math.min(json.pagination.last_visible_page, MAX_PAGES);
+        totalPg = Math.min(json.pagination.last_visible_page, endPg);
       }
-      hasMore = (json.pagination?.has_next_page ?? false) && pg < MAX_PAGES;
+
+      // capHit = we stopped because we hit this chunk's ceiling, and the API
+      // confirms there's more. That's the signal to show View More again.
+      if (apiHasMore && pg >= endPg) capHit = true;
+      hasMore = apiHasMore && pg < endPg;
 
       clearSkels();
       allAnime = allAnime.concat(items);
@@ -948,7 +968,7 @@ async function loadAll(startPg = 1) {
       onFetchApplied();     // virtualization-aware DOM update
       updateCounts();
 
-      const cap = totalPg || MAX_PAGES;
+      const cap = totalPg || endPg;
       const pct = Math.min(Math.round((pg / cap) * 100), 99);
       lfill.style.width = pct + '%';
       setProgress(pct);
@@ -969,6 +989,7 @@ async function loadAll(startPg = 1) {
       bErr.classList.add('on');
     }
     retryB.dataset.pg = pg;
+    retryB.dataset.endpg = endPg;
     return;
   }
 
@@ -978,6 +999,13 @@ async function loadAll(startPg = 1) {
   ltxt.textContent = `Done — ${allAnime.length} anime loaded`;
   setTimeout(() => { lprog.classList.remove('on'); setProgress(100); }, 1800);
   updateCounts();
+
+  // If we stopped because this chunk's ceiling was hit (and there's more out
+  // there), surface the View More button so the user can pull in the next 500.
+  if (capHit && !aborted) {
+    vmBtn.dataset.pg = pg;
+    vmWrap.classList.add('on');
+  }
 }
 
 // ─── EXPORT CSV ──────────────────────────────────────────────────────────────
@@ -1053,14 +1081,28 @@ expBtn.addEventListener('click', exportCSV);
 
 retryB.addEventListener('click', () => {
   bErr.classList.remove('on');
-  const pg = Number(retryB.dataset.pg) || 1;
-  loadAll(pg);
+  const pg    = Number(retryB.dataset.pg)    || 1;
+  const endPg = Number(retryB.dataset.endpg) || MAX_PAGES;
+  loadAll(pg, endPg);
+});
+
+// View More: load the next ~500 anime. If more remain after that, the button
+// reappears at the end of the chunk.
+vmBtn.addEventListener('click', () => {
+  const pg = Number(vmBtn.dataset.pg) || (MAX_PAGES + 1);
+  vmWrap.classList.remove('on');
+  loadAll(pg, pg + CHUNK_PAGES - 1);
 });
 
 window.addEventListener('offline', () => bOffline.classList.add('on'));
 window.addEventListener('online',  () => {
   bOffline.classList.remove('on');
-  if (bErr.classList.contains('on')) { bErr.classList.remove('on'); loadAll(Number(retryB.dataset.pg) || 1); }
+  if (bErr.classList.contains('on')) {
+    bErr.classList.remove('on');
+    const pg    = Number(retryB.dataset.pg)    || 1;
+    const endPg = Number(retryB.dataset.endpg) || MAX_PAGES;
+    loadAll(pg, endPg);
+  }
 });
 
 // Pause background fetching when the tab is hidden. Browsers already throttle
