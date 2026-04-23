@@ -346,6 +346,9 @@ body{min-height:100vh}
 .empty h3{font-size:13.5px;font-weight:500;color:var(--fg);margin-bottom:5px}
 .empty p{font-size:12px;color:var(--fg3);max-width:240px;margin:0 auto;font-weight:400}
 
+/* ── SENTINEL (virtualization trigger) ── */
+.sentinel{grid-column:1/-1;height:1px;pointer-events:none;visibility:hidden}
+
 /* ── TOAST ── */
 #toast{
   position:fixed;bottom:24px;left:50%;
@@ -458,6 +461,8 @@ body{min-height:100vh}
 
 <script>
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
+// IMPORTANT: keep LS_KEY and data shape identical so existing users keep their
+// saved watchlists across this update.
 const LS_KEY = 'hiw:v3';
 let lsOk = false;
 
@@ -501,6 +506,16 @@ function lsDel(id) {
   if (id in d) { delete d[id]; lsWrite(d); }
 }
 
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+// Tuning knobs for perf. These prevent the runaway-fetch + unbounded-DOM
+// growth that was freezing tabs left alone.
+const MAX_PAGES         = 40;    // cap API pagination (~1000 top anime)
+const BATCH_SIZE        = 60;    // cards rendered per virtualization batch
+const SENTINEL_MARGIN   = '1500px 0px'; // preload next batch well before visible
+const SEARCH_DEBOUNCE   = 180;   // ms — smooths live search typing
+const FETCH_DELAY       = 420;   // ms between pages (unchanged)
+const MAX_RETRY         = 3;
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let allAnime = [];
 let watched  = {};
@@ -510,10 +525,14 @@ let seenIds  = new Set();
 let totalPg  = null;
 let aborted  = false;
 
+// Virtualization state
+let currentList   = [];  // filter/search-matched view of allAnime
+let renderedCount = 0;   // how many cards are actually in the DOM
+
 // Language state
 let lang = (lsOk && localStorage.getItem('hiw:lang')) || 'en';
 
-// Pre-load watched state
+// Pre-load watched state from storage (unchanged data shape)
 (function(){
   const d = lsRead();
   Object.keys(d).forEach(id => { watched[id] = true; });
@@ -552,10 +571,8 @@ let dark = document.documentElement.hasAttribute('data-theme');
 
 function updateDmIcon() {
   if (dark) {
-    // Sun icon
     dmIco.innerHTML = `<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>`;
   } else {
-    // Moon icon
     dmIco.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`;
   }
 }
@@ -576,21 +593,33 @@ updateDmIcon();
 dmBtn.addEventListener('click', toggleDark);
 
 // ─── LANGUAGE ────────────────────────────────────────────────────────────────
+// Fast path: update titles of already-rendered cards in place instead of
+// rebuilding the whole grid. Preserves scroll position and is essentially free.
 function setLang(l) {
   lang = l;
   if (lsOk) localStorage.setItem('hiw:lang', l);
   document.querySelectorAll('.lang-btn').forEach(b =>
     b.classList.toggle('on', b.dataset.l === l)
   );
-  // Re-render current view
-  if (filter === 'all' && !query) {
-    grid.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    allAnime.forEach(a => frag.appendChild(makeCard(a)));
-    grid.appendChild(frag);
-  } else {
-    renderView();
-  }
+
+  // If we haven't rendered yet (e.g. empty state), nothing to update.
+  if (!grid.querySelector('.card')) return;
+
+  grid.querySelectorAll('.card').forEach(card => {
+    const anime = card._anime;
+    if (!anime) return;
+    const t = getTitle(anime);
+    const safeT = t.replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const titleEl = card.querySelector('.ctitle');
+    if (titleEl) {
+      titleEl.textContent = t;
+      titleEl.title = t;
+    }
+    const fb = card.querySelector('.pfallback span');
+    if (fb) fb.textContent = t.slice(0, 22);
+    const cb = card.querySelector('input[type=checkbox]');
+    if (cb) cb.setAttribute('aria-label', safeT + ' watched toggle');
+  });
 }
 
 // Init lang button state
@@ -662,11 +691,12 @@ function makeCard(anime) {
   const el = document.createElement('div');
   el.className = 'card' + (isW ? ' watched' : '');
   el.dataset.id = anime.mal_id;
+  el._anime = anime; // reference for lang swap / toggle
 
   el.innerHTML = `
 <div class="poster">
   ${img
-    ? `<img src="${img}" alt="" loading="lazy">`
+    ? `<img src="${img}" alt="" loading="lazy" decoding="async">`
     : `<div class="pfallback">${IMG_PH}<span>${title.slice(0,20)}</span></div>`}
   <div class="veil"><div class="vcheck"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></div>
   ${rank !== null ? `<span class="b-rank">#${rank}</span>` : ''}
@@ -728,27 +758,140 @@ function onToggle(anime, card, nowWatched) {
 
   updateCounts();
 
+  // If this card no longer belongs in the current filtered view, animate
+  // removal and update virtualization state in place (preserves scroll).
   if ((filter === 'watched' && !nowWatched) ||
       (filter === 'unwatched' && nowWatched)) {
     card.style.cssText += ';transition:opacity .28s,transform .28s;opacity:0;transform:scale(.95)';
-    setTimeout(() => { card.remove(); if (!grid.querySelector('.card')) renderView(); }, 300);
+    setTimeout(() => {
+      card.remove();
+      renderedCount = Math.max(0, renderedCount - 1);
+      const idx = currentList.indexOf(anime);
+      if (idx >= 0) currentList.splice(idx, 1);
+      if (currentList.length === 0) {
+        renderView();           // shows the friendly empty state
+      } else {
+        ensureSentinel();
+      }
+    }, 300);
   }
 }
 
 // ─── SKELETONS ───────────────────────────────────────────────────────────────
-function addSkels(n = 25) {
+function addSkels(n = 12) {
+  const frag = document.createDocumentFragment();
   for (let i = 0; i < n; i++) {
     const s = document.createElement('div');
     s.className = 'skel';
     s.innerHTML = `<div class="sk-p"></div><div class="sk-b"><div class="sk-l"></div><div class="sk-l w6"></div><div class="sk-l w4"></div></div>`;
-    grid.appendChild(s);
+    frag.appendChild(s);
   }
+  grid.appendChild(frag);
 }
 function clearSkels() { grid.querySelectorAll('.skel').forEach(s => s.remove()); }
 
+// ─── VIRTUALIZATION (the fix) ────────────────────────────────────────────────
+// Previously every fetched card went straight into the DOM, so leaving the
+// tab open slowly piled up thousands of nodes until the browser choked.
+// Now we hold data in memory, render a batch, and use a single
+// IntersectionObserver on a "sentinel" div to render more only as the user
+// scrolls. One observer lives for the page lifetime — no leaks.
+const sentinelObs = new IntersectionObserver((entries) => {
+  if (entries.some(e => e.isIntersecting)) renderMore();
+}, { rootMargin: SENTINEL_MARGIN });
+
+function addSentinel() {
+  if (grid.querySelector('.sentinel')) return;
+  const sent = document.createElement('div');
+  sent.className = 'sentinel';
+  grid.appendChild(sent);
+  sentinelObs.observe(sent);
+}
+
+function removeSentinel() {
+  const sent = grid.querySelector('.sentinel');
+  if (sent) { sentinelObs.unobserve(sent); sent.remove(); }
+}
+
+function ensureSentinel() {
+  if (renderedCount < currentList.length) addSentinel();
+  else removeSentinel();
+}
+
+function renderMore() {
+  removeSentinel(); // will re-add if needed
+  const end = Math.min(renderedCount + BATCH_SIZE, currentList.length);
+  if (end <= renderedCount) return;
+
+  const frag = document.createDocumentFragment();
+  for (let i = renderedCount; i < end; i++) {
+    frag.appendChild(makeCard(currentList[i]));
+  }
+  grid.appendChild(frag);
+  renderedCount = end;
+
+  ensureSentinel();
+}
+
+function computeFilteredList() {
+  let list = allAnime;
+  if (query) {
+    const q = query.toLowerCase();
+    list = list.filter(a =>
+      a.title.toLowerCase().includes(q) ||
+      (a.title_english  || '').toLowerCase().includes(q) ||
+      (a.title_japanese || '').toLowerCase().includes(q)
+    );
+  }
+  if (filter === 'watched')   list = list.filter(a => watched[a.mal_id]);
+  if (filter === 'unwatched') list = list.filter(a => !watched[a.mal_id]);
+  return list;
+}
+
+// Full re-render: used on filter change, search change, and transitions
+// into/out of the empty state.
+function renderView() {
+  currentList = computeFilteredList();
+  removeSentinel();
+  grid.innerHTML = '';
+  renderedCount = 0;
+
+  if (currentList.length === 0) {
+    const msgs = {
+      watched:   ['Nothing watched yet',   'Toggle the switch on any anime card.'],
+      unwatched: ['All caught up!',         'You\'ve watched everything visible.'],
+      all:       ['No results',             `No anime matched "${query}".`]
+    };
+    const [h, p] = msgs[filter] || msgs.all;
+    grid.innerHTML = `<div class="empty"><div class="eico">${IMG_PH}</div><h3>${h}</h3><p>${p}</p></div>`;
+    return;
+  }
+
+  renderMore();
+}
+
+// Called after each fetched page: keep currentList fresh without a full
+// rebuild. If nothing is rendered yet we do the first render; otherwise we
+// just make sure the sentinel is there so new data becomes scroll-accessible.
+function onFetchApplied() {
+  if (filter === 'all' && !query) {
+    currentList = allAnime;
+    if (renderedCount === 0) renderMore();
+    else ensureSentinel();
+  } else {
+    const prev = currentList.length;
+    currentList = computeFilteredList();
+    if (renderedCount === 0 && currentList.length > 0) {
+      // We were showing the empty state; swap it out for real cards.
+      grid.innerHTML = '';
+      renderMore();
+    } else if (currentList.length > prev) {
+      ensureSentinel();
+    }
+  }
+}
+
 // ─── FETCH ALL ───────────────────────────────────────────────────────────────
-const DELAY = 420;
-const MAX_RETRY = 3;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function fetchPg(pg, attempt = 0) {
@@ -776,16 +919,16 @@ async function fetchPg(pg, attempt = 0) {
   }
 }
 
-async function loadAll() {
+async function loadAll(startPg = 1) {
   aborted = false;
   lprog.classList.add('on');
-  addSkels(25);
+  if (renderedCount === 0) addSkels(12);
   setProgress(2);
 
-  let pg = 1, hasMore = true;
+  let pg = startPg, hasMore = true;
 
   try {
-    while (hasMore && !aborted) {
+    while (hasMore && !aborted && pg <= MAX_PAGES) {
       const json = await fetchPg(pg);
       const items = (json.data || []).filter(a => {
         if (seenIds.has(a.mal_id)) return false;
@@ -793,29 +936,26 @@ async function loadAll() {
         return true;
       });
 
-      if (!totalPg && json.pagination?.last_visible_page) totalPg = json.pagination.last_visible_page;
-      hasMore = json.pagination?.has_next_page ?? false;
+      // Cap totalPg at MAX_PAGES so the progress bar reflects the real ceiling.
+      if (!totalPg && json.pagination?.last_visible_page) {
+        totalPg = Math.min(json.pagination.last_visible_page, MAX_PAGES);
+      }
+      hasMore = (json.pagination?.has_next_page ?? false) && pg < MAX_PAGES;
 
       clearSkels();
-      allAnime = [...allAnime, ...items];
+      allAnime = allAnime.concat(items);
 
-      if (filter === 'all' && !query) {
-        const frag = document.createDocumentFragment();
-        items.forEach(a => frag.appendChild(makeCard(a)));
-        grid.appendChild(frag);
-      }
-
+      onFetchApplied();     // virtualization-aware DOM update
       updateCounts();
 
-      const pct = totalPg ? Math.round((pg / totalPg) * 100) : Math.min(pg * 4, 90);
+      const cap = totalPg || MAX_PAGES;
+      const pct = Math.min(Math.round((pg / cap) * 100), 99);
       lfill.style.width = pct + '%';
       setProgress(pct);
-      ltxt.textContent = totalPg
-        ? `Loading… ${allAnime.length} of ~${totalPg * 25} anime (page ${pg}/${totalPg})`
-        : `Loaded ${allAnime.length} anime…`;
+      ltxt.textContent = `Loading… ${allAnime.length} of ~${cap * 25} anime (page ${pg}/${cap})`;
 
       pg++;
-      if (hasMore) await sleep(DELAY);
+      if (hasMore) await sleep(FETCH_DELAY);
     }
   } catch(e) {
     clearSkels();
@@ -829,7 +969,7 @@ async function loadAll() {
       bErr.classList.add('on');
     }
     retryB.dataset.pg = pg;
-    retryB.dataset.hasMore = '1';
+    return;
   }
 
   clearSkels();
@@ -838,38 +978,6 @@ async function loadAll() {
   ltxt.textContent = `Done — ${allAnime.length} anime loaded`;
   setTimeout(() => { lprog.classList.remove('on'); setProgress(100); }, 1800);
   updateCounts();
-}
-
-// ─── RENDER FILTERED ─────────────────────────────────────────────────────────
-function renderView() {
-  let list = allAnime;
-  if (query) {
-    const q = query.toLowerCase();
-    list = list.filter(a =>
-      a.title.toLowerCase().includes(q) ||
-      (a.title_english  || '').toLowerCase().includes(q) ||
-      (a.title_japanese || '').toLowerCase().includes(q)
-    );
-  }
-  if (filter === 'watched')   list = list.filter(a => watched[a.mal_id]);
-  if (filter === 'unwatched') list = list.filter(a => !watched[a.mal_id]);
-
-  grid.innerHTML = '';
-
-  if (list.length === 0) {
-    const msgs = {
-      watched:   ['Nothing watched yet',   'Toggle the switch on any anime card.'],
-      unwatched: ['All caught up!',         'You\'ve watched everything visible.'],
-      all:       ['No results',             `No anime matched "${query}".`]
-    };
-    const [h, p] = msgs[filter] || msgs.all;
-    grid.innerHTML = `<div class="empty"><div class="eico">${IMG_PH}</div><h3>${h}</h3><p>${p}</p></div>`;
-    return;
-  }
-
-  const frag = document.createDocumentFragment();
-  list.forEach(a => frag.appendChild(makeCard(a)));
-  grid.appendChild(frag);
 }
 
 // ─── EXPORT CSV ──────────────────────────────────────────────────────────────
@@ -904,39 +1012,36 @@ function exportCSV() {
 // ─── EVENTS ──────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
+    if (filter === t.dataset.f) return; // no-op click
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
     t.classList.add('on');
     filter = t.dataset.f;
-    if (filter === 'all' && !query) {
-      grid.innerHTML = '';
-      const frag = document.createDocumentFragment();
-      allAnime.forEach(a => frag.appendChild(makeCard(a)));
-      grid.appendChild(frag);
-    } else { renderView(); }
+    renderView();
   });
 });
 
+// Debounced search — stops the grid from rebuilding on every keystroke.
+let _searchTimer;
 srch.addEventListener('input', () => {
-  query = srch.value.trim();
-  srchX.classList.toggle('on', query.length > 0);
-  if (!query && filter === 'all') {
-    grid.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    allAnime.forEach(a => frag.appendChild(makeCard(a)));
-    grid.appendChild(frag);
-  } else { renderView(); }
+  srchX.classList.toggle('on', srch.value.trim().length > 0);
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    const next = srch.value.trim();
+    if (next === query) return;
+    query = next;
+    renderView();
+  }, SEARCH_DEBOUNCE);
 });
 
 srchX.addEventListener('click', () => {
-  srch.value = ''; query = '';
+  srch.value = '';
   srchX.classList.remove('on');
   srch.focus();
-  if (filter === 'all') {
-    grid.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    allAnime.forEach(a => frag.appendChild(makeCard(a)));
-    grid.appendChild(frag);
-  } else { renderView(); }
+  clearTimeout(_searchTimer);
+  if (query !== '') {
+    query = '';
+    renderView();
+  }
 });
 
 document.addEventListener('keydown', e => {
@@ -948,13 +1053,20 @@ expBtn.addEventListener('click', exportCSV);
 
 retryB.addEventListener('click', () => {
   bErr.classList.remove('on');
-  loadAll();
+  const pg = Number(retryB.dataset.pg) || 1;
+  loadAll(pg);
 });
 
 window.addEventListener('offline', () => bOffline.classList.add('on'));
 window.addEventListener('online',  () => {
   bOffline.classList.remove('on');
-  if (bErr.classList.contains('on')) { bErr.classList.remove('on'); loadAll(); }
+  if (bErr.classList.contains('on')) { bErr.classList.remove('on'); loadAll(Number(retryB.dataset.pg) || 1); }
+});
+
+// Pause background fetching when the tab is hidden. Browsers already throttle
+// this, but it's extra insurance for very long backgrounded sessions.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) aborted = true;
 });
 
 if (!lsOk) toast('Private mode — watched status won\'t persist across sessions', 'warn');
